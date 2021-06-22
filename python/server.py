@@ -38,9 +38,12 @@ import plaid
 import base64
 import os
 import datetime
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 import json
 import time
 from dotenv import load_dotenv
+from pymongo import MongoClient
 load_dotenv()
 
 
@@ -62,6 +65,9 @@ PLAID_PRODUCTS = os.getenv('PLAID_PRODUCTS', 'transactions').split(',')
 # PLAID_COUNTRY_CODES is a comma-separated list of countries for which users
 # will be able to select institutions from.
 PLAID_COUNTRY_CODES = os.getenv('PLAID_COUNTRY_CODES', 'US').split(',')
+
+MONGODB_CONNECTION_STRING = os.getenv('MONGODB_CONNECTION_STRING')
+MONGO_DB = MongoClient(MONGODB_CONNECTION_STRING).explore
 
 
 def empty_to_none(field):
@@ -209,12 +215,84 @@ def get_access_token():
     global access_token
     global item_id
     public_token = request.form['public_token']
+    email = request.form['email']
     try:
         exchange_request = ItemPublicTokenExchangeRequest(
             public_token=public_token)
         exchange_response = client.item_public_token_exchange(exchange_request)
         access_token = exchange_response['access_token']
         item_id = exchange_response['item_id']
+
+        try:
+            hrequest = InvestmentsHoldingsGetRequest(access_token=access_token)
+            hresponse = client.investments_holdings_get(hrequest)
+            i = hresponse.to_dict()
+
+            start_date = (datetime.datetime.now() - relativedelta(years=(9)))
+            end_date = datetime.datetime.now()
+            it_options = InvestmentsTransactionsGetRequestOptions()
+            it_request = InvestmentsTransactionsGetRequest(
+                access_token=access_token, start_date=start_date.date(), end_date=end_date.date(), options=it_options)
+            it_response = client.investments_transactions_get(it_request)
+
+            it = it_response.to_dict()
+
+            security_lookup = {}
+            for item in i['securities']:
+                security_lookup[item['security_id']] = item
+
+            for item in i['holdings']:
+                item.pop('institution_price')
+                item.pop('institution_price_as_of')
+                item.pop('institution_value')
+                item.pop('unofficial_currency_code')
+
+            for item in it['investment_transactions']:
+                item.pop('account_id')
+                item.pop('cancel_transaction_id')
+                item.pop('iso_currency_code')
+                item.pop('unofficial_currency_code')
+
+            for item in i['holdings']:
+                item['Cusip'] = security_lookup[item['security_id']]['cusip']
+                item['Name'] = security_lookup[item['security_id']]['name']
+                item['Ticker'] = security_lookup[item['security_id']]['ticker_symbol']
+                item['Type'] = security_lookup[item['security_id']]['type']
+
+            user_info = {}
+
+            user_info['Accounts'] = i['accounts']
+            user_info['Investments'] = i['holdings']
+
+            for item in user_info['Investments']:
+                item['Transactions'] = []
+
+            for item in user_info['Investments']:
+                for totem in it['investment_transactions']:
+                    if item['security_id'] == totem['security_id']:
+                        item['Transactions'].append(totem)
+
+            l = user_info['Investments'].copy()
+            user_info['Investments'] = {}
+            for item in l:
+                if item['Type'] == 'cash':
+                    user_info['Balance'] = item
+                else:
+                    user_info['Investments'][item['Ticker']] = item
+
+            #print(json.dumps(user_info, indent=3))
+            user_info['access_token'] = access_token
+
+            if None in user_info['Investments']:
+                user_info['Investments']['UNKNOWN_TAG'] = user_info['Investments'].pop(None)
+
+            MONGO_DB.user_profile_v1.update_one({'email': email}, {'$set': {'robinhood': user_info}})
+
+            #print("Done Printing User Info")
+        except plaid.ApiException as e:
+            error_response = format_error(e)
+            print(jsonify(error_response))
+
         return jsonify(exchange_response.to_dict())
     except plaid.ApiException as e:
         return json.loads(e.body)
@@ -485,4 +563,4 @@ def format_error(e):
 
 
 if __name__ == '__main__':
-    app.run(port=os.getenv('PORT', 8000))
+    app.run(host="0.0.0.0", port=os.getenv('PORT', 8000))

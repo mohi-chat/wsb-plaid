@@ -6,6 +6,9 @@ import Context from "../../Context";
 
 const Link = () => {
   const { linkToken, dispatch } = useContext(Context);
+  const [email, setEmail] = React.useState(
+    localStorage.getItem("email") || "notanemail@gmail.com"
+  );
 
   const onSuccess = React.useCallback(
     (public_token: string) => {
@@ -16,7 +19,7 @@ const Link = () => {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
           },
-          body: `public_token=${public_token}`,
+          body: `public_token=${public_token}&email=${email}`,
         });
         if (!response.ok) {
           dispatch({
@@ -69,7 +72,7 @@ const Link = () => {
 
   return (
     <Button type="button" large onClick={() => open()} disabled={!ready}>
-      Launch Link
+      Link Account
     </Button>
   );
 };
