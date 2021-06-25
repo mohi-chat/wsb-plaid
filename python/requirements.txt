@@ -1,5 +1,12 @@
-Flask==1.1.2
-plaid_python==8.0.0b12
-python-dotenv==0.15.0
-pymongo==3.11.4
 dnspython==2.1.0
+fastapi
+gunicorn
+httptools
+loguru
+plaid_python==8.0.0b12
+pymongo==3.11.4
+python-dotenv==0.15.0
+python-multipart
+pytz
+uvicorn
+uvloop
