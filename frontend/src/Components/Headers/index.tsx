@@ -19,69 +19,82 @@ const Header = () => {
     linkTokenError,
   } = useContext(Context);
 
+  const [email, setEmail] = React.useState(localStorage.getItem("email") || "");
+  const isAccessAuthorized = (email.length==0? false : true); 
+
   return (
     <div className={styles.grid}>
-
-      {!linkSuccess ? (
-        <>
-          <h3 className={styles.title}>Integrate your account with WSB!</h3>
-          <p className={styles.introPar}>
-            Follow the link to connect your trading accounts to WSB.
-            Please don't press the back or refresh button once linking is in progress.
-          </p>
-          {/* message if backend is not running and there is no link token */}
-          {!backend ? (
-            <Callout warning>
-              Unable to fetch link_token: please make sure your backend server
-              is running and that your .env file has been configured with your
-              <code>PLAID_CLIENT_ID</code> and <code>PLAID_SECRET</code>.
-            </Callout>
-          ) : /* message if backend is running and there is no link token */
-          linkToken == null && backend ? (
-            <Callout warning>
-              <div>
-                Unable to fetch link_token: please make sure your backend server
-                is running and that your .env file has been configured
-                correctly.
-              </div>
-              <div>
-                Error Code: <code>{linkTokenError.error_code}</code>
-              </div>
-              <div>
-                Error Type: <code>{linkTokenError.error_type}</code>{" "}
-              </div>
-              <div>Error Message: {linkTokenError.error_message}</div>
-            </Callout>
-          ) : linkToken === "" ? (
-            <div className={styles.linkButton}>
-              <Button large disabled>
-                Loading...
-              </Button>
-            </div>
-          ) : (
-            <div className={styles.linkButton}>
-              <Link />
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          {isItemAccess ? (
-            <div>
-            <h3 className={styles.title}>Account linked</h3>
-            <h4 className={styles.subtitle}>
-              Congrats! You have successfully linked your account with WSB. You may now return to App.
-            </h4>
-            </div>
-          ) : (
-            <h4 className={styles.subtitle}>
-              <Callout warning>
-                Unable to create an item. Please check your backend server
-              </Callout>
-            </h4>
-          )}
-        </>
-      )}
+      {
+        !isAccessAuthorized ? (
+          <>
+            <h3>Page Not Found</h3>
+            <p>Oops. Our servers don't recognize the page you are looking for.</p>
+          </>
+        ) : (
+          <>
+            {!linkSuccess ? (
+              <>
+                <h3 className={styles.title}>Integrate your account with WSB!</h3>
+                <p className={styles.introPar}>
+                  Follow the link to connect your trading accounts to WSB.
+                  Please don't press the back or refresh button once linking is in progress.
+                </p>
+                {/* message if backend is not running and there is no link token */}
+                {!backend ? (
+                  <Callout warning>
+                    Unable to fetch link_token: please make sure your backend server
+                    is running and that your .env file has been configured with your
+                    <code>PLAID_CLIENT_ID</code> and <code>PLAID_SECRET</code>.
+                  </Callout>
+                ) : /* message if backend is running and there is no link token */
+                linkToken == null && backend ? (
+                  <Callout warning>
+                    <div>
+                      Unable to fetch link_token: please make sure your backend server
+                      is running and that your .env file has been configured
+                      correctly.
+                    </div>
+                    <div>
+                      Error Code: <code>{linkTokenError.error_code}</code>
+                    </div>
+                    <div>
+                      Error Type: <code>{linkTokenError.error_type}</code>{" "}
+                    </div>
+                    <div>Error Message: {linkTokenError.error_message}</div>
+                  </Callout>
+                ) : linkToken === "" ? (
+                  <div className={styles.linkButton}>
+                    <Button large disabled>
+                      Loading...
+                    </Button>
+                  </div>
+                ) : (
+                  <div className={styles.linkButton}>
+                    <Link />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {isItemAccess ? (
+                  <div>
+                  <h3 className={styles.title}>Account linked</h3>
+                  <h4 className={styles.subtitle}>
+                    Congrats! You have successfully linked your account with WSB. You may now return to App.
+                  </h4>
+                  </div>
+                ) : (
+                  <h4 className={styles.subtitle}>
+                    <Callout warning>
+                      Unable to create an item. Please check your backend server
+                    </Callout>
+                  </h4>
+                )}
+              </>
+            )}
+          </>
+        )
+      }
     </div>
   );
 };
