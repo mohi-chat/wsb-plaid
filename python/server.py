@@ -170,7 +170,6 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
                                                 {'$set': {
                                                     'robinhood': user_info,
                                                     'is_robinhood_linked': True,
-                                                    'robinhood_access_token': access_token,
                                                     'robinhood_item_id': item_id
                                                 }
                                                 })
