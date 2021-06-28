@@ -170,9 +170,16 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
                                                 {'$set': {
                                                     'robinhood': user_info,
                                                     'is_robinhood_linked': True,
-                                                    'robinhood_access_token': access_token
+                                                    'robinhood_access_token': access_token,
+                                                    'robinhood_item_id': item_id
                                                 }
                                                 })
+
+            MONGO_DB.robinhood_metadata.insert_one({
+                                                    'robinhood_item_id': item_id,
+                                                    'robinhood_access_token': access_token,
+                                                    'email': email
+                                                   })
         except plaid.ApiException as e:
             error_response = format_error(e)
             error_response['user_email'] = email
