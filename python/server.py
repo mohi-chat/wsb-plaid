@@ -123,6 +123,7 @@ def create_link_token():
             client_name="Plaid Quickstart",
             country_codes=[CountryCode('US')],
             language='en',
+            webhook='https://us-central1-capital-group-infra.cloudfunctions.net/robinhood_refresh_webook'
             user=LinkTokenCreateRequestUser(
                 client_user_id=str(time.time())
             )
