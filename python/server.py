@@ -115,13 +115,63 @@ def info():
     }
 
 
+@app.route('/api/create_link_token_for_payment', methods=['POST'])
+def create_link_token_for_payment():
+    global payment_id
+    try:
+        request = PaymentInitiationRecipientCreateRequest(
+            name='John Doe',
+            bacs=NullableRecipientBACS(account='26207729', sort_code='560029'),
+            address=PaymentInitiationAddress(
+                street=['street name 999'],
+                city='city',
+                postal_code='99999',
+                country='GB'
+            )
+        )
+        response = client.payment_initiation_recipient_create(
+            request)
+        recipient_id = response['recipient_id']
+
+        request = PaymentInitiationPaymentCreateRequest(
+            recipient_id=recipient_id,
+            reference='TestPayment',
+            amount=PaymentAmount(
+                currency='GBP',
+                value=100.00
+            )
+        )
+        response = client.payment_initiation_payment_create(
+            request
+        )
+        pretty_print_response(response.to_dict())
+        payment_id = response['payment_id']
+        request = LinkTokenCreateRequest(
+            products=[Products('payment_initiation')],
+            client_name='Plaid Test',
+            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES)),
+            language='en',
+            user=LinkTokenCreateRequestUser(
+                client_user_id=str(time.time())
+            ),
+            payment_initiation=LinkTokenCreateRequestPaymentInitiation(
+                payment_id=payment_id
+            )
+        )
+        response = client.link_token_create(request)
+        pretty_print_response(response.to_dict())
+        return jsonify(response.to_dict())
+    except plaid.ApiException as e:
+        return json.loads(e.body)
+
+
 @app.post('/api/create_link_token')
 def create_link_token():
     try:
         request = LinkTokenCreateRequest(
             products=products,
             client_name="Plaid Quickstart",
-            country_codes=[CountryCode('US')],
+            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES)),
             language='en',
             webhook='https://us-central1-capital-group-infra.cloudfunctions.net/robinhood_refresh_webook',
             user=LinkTokenCreateRequestUser(
@@ -247,6 +297,27 @@ def process_securities_data(investment_response, investment_transaction_response
         user_info['UNKNOWN_TAG'] = user_info.pop(None)
 
     return user_info
+# Retrieve high-level information about an Item
+# https://plaid.com/docs/#retrieve-item
+
+
+@app.route('/api/item', methods=['GET'])
+def item():
+    try:
+        request = ItemGetRequest(access_token=access_token)
+        response = client.item_get(request)
+        request = InstitutionsGetByIdRequest(
+            institution_id=response['item']['institution_id'],
+            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES))
+        )
+        institution_response = client.institutions_get_by_id(request)
+        pretty_print_response(response.to_dict())
+        pretty_print_response(institution_response.to_dict())
+        return jsonify({'error': None, 'item': response.to_dict()[
+            'item'], 'institution': institution_response.to_dict()['institution']})
+    except plaid.ApiException as e:
+        error_response = format_error(e)
+        return jsonify(error_response)
 
 def pretty_print_response(response):
   print(json.dumps(response, indent=2, sort_keys=True, default=str))

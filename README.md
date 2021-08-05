@@ -150,6 +150,8 @@ $ ./start.sh
 
 ##### Python
 
+**:warning: As `python2` has reached its end of life, only `python3` is supported.**
+
 ```
 $ cd ./python
 
@@ -159,6 +161,21 @@ $ cd ./python
 
 $ pip install -r requirements.txt
 $ ./start.sh
+```
+
+If you get this error message:
+
+```
+ssl.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:749)
+```
+
+You may need to run the following command in your terminal for your particular version of python in order to install SSL certificates:
+
+```
+# examples:
+open /Applications/Python\ 3.9/Install\ Certificates.command
+# or
+open /Applications/Python\ 3.6/Install\ Certificates.command
 ```
 
 ##### Ruby
@@ -196,10 +213,10 @@ $ npm start
 
 ## Testing OAuth
 
-Some institutions (primarily in Europe, but a small number in the US) require an OAuth redirect 
-authentication flow, where the end user is redirected to the bank’s website or mobile app to 
-authenticate. For this flow, you should set `PLAID_REDIRECT_URI=http://localhost:3000/` in `.env`. 
-You will also need to register this localhost redirect URI in the 
+Some institutions (primarily in Europe, but a small number in the US) require an OAuth redirect
+authentication flow, where the end user is redirected to the bank’s website or mobile app to
+authenticate. For this flow, you should set `PLAID_REDIRECT_URI=http://localhost:3000/` in `.env`.
+You will also need to register this localhost redirect URI in the
 [Plaid dashboard under Team Settings > API > Allowed redirect URIs][dashboard-api-section].
 
 OAuth flows are only testable in the `sandbox` environment in this Quickstart app due to an https
