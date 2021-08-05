@@ -174,7 +174,12 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             elif investment_response['item']['institution_id'] == FIDELITY:
                 profile = 'fidelity'
 
+            itr = investment_transaction_response.copy()
+            activity = {}
+            for transaction in itr['investment_transactions']:
+                activity[transaction['investment_transaction_id']] = transaction
             user_info = process_securities_data(investment_response, investment_transaction_response)
+
 
             #print(json.dumps(user_info, indent=3))
             MONGO_DB.user_profile_v1.update_one({'email': email},
@@ -197,7 +202,8 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
                                                     "ticker_meta": {
                                                         "no_of_tickers": 0,
                                                         "no_of_purchased_tickers": len(user_info)
-                                                    }
+                                                    },
+                                                    "activity": activity
                                                  })
 
             MONGO_DB[profile+'_metadata'].insert_one({
