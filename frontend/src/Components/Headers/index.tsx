@@ -50,8 +50,7 @@ const Header = () => {
                 linkToken == null && backend ? (
                   <Callout warning>
                     <div>
-                      Unable to fetch link_token: please make sure your backend server
-                      is running and that your .env file has been configured
+                      Unable to fetch link_token: We are working on this. Please try again later.
                       correctly.
                     </div>
                     <div>
@@ -86,7 +85,7 @@ const Header = () => {
                 ) : (
                   <h4 className={styles.subtitle}>
                     <Callout warning>
-                      Unable to create an item. Please check your backend server
+                      Unable to create an item. We are working on this. Please try again later.
                     </Callout>
                   </h4>
                 )}

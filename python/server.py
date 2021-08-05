@@ -54,6 +54,11 @@ PLAID_COUNTRY_CODES = os.getenv('PLAID_COUNTRY_CODES', 'US').split(',')
 MONGODB_CONNECTION_STRING = os.getenv('MONGODB_CONNECTION_STRING')
 MONGO_DB = MongoClient(MONGODB_CONNECTION_STRING).explore
 
+# Institution IDS (As per Plaid documentation)
+# ============================================
+ROBINHOOD = 'ins_54'
+FIDELITY = 'ins_12'
+# ============================================
 
 def empty_to_none(field):
     value = os.getenv(field)
@@ -115,56 +120,6 @@ def info():
     }
 
 
-@app.route('/api/create_link_token_for_payment', methods=['POST'])
-def create_link_token_for_payment():
-    global payment_id
-    try:
-        request = PaymentInitiationRecipientCreateRequest(
-            name='John Doe',
-            bacs=NullableRecipientBACS(account='26207729', sort_code='560029'),
-            address=PaymentInitiationAddress(
-                street=['street name 999'],
-                city='city',
-                postal_code='99999',
-                country='GB'
-            )
-        )
-        response = client.payment_initiation_recipient_create(
-            request)
-        recipient_id = response['recipient_id']
-
-        request = PaymentInitiationPaymentCreateRequest(
-            recipient_id=recipient_id,
-            reference='TestPayment',
-            amount=PaymentAmount(
-                currency='GBP',
-                value=100.00
-            )
-        )
-        response = client.payment_initiation_payment_create(
-            request
-        )
-        pretty_print_response(response.to_dict())
-        payment_id = response['payment_id']
-        request = LinkTokenCreateRequest(
-            products=[Products('payment_initiation')],
-            client_name='Plaid Test',
-            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES)),
-            language='en',
-            user=LinkTokenCreateRequestUser(
-                client_user_id=str(time.time())
-            ),
-            payment_initiation=LinkTokenCreateRequestPaymentInitiation(
-                payment_id=payment_id
-            )
-        )
-        response = client.link_token_create(request)
-        pretty_print_response(response.to_dict())
-        return jsonify(response.to_dict())
-    except plaid.ApiException as e:
-        return json.loads(e.body)
-
-
 @app.post('/api/create_link_token')
 def create_link_token():
     try:
@@ -214,20 +169,40 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             investment_transaction_response = client.investments_transactions_get(investment_transaction_request)
             investment_transaction_response = investment_transaction_response.to_dict()
 
+            if investment_response['item']['institution_id'] == ROBINHOOD:
+                profile = 'robinhood'
+            elif investment_response['item']['institution_id'] == FIDELITY:
+                profile = 'fidelity'
+
             user_info = process_securities_data(investment_response, investment_transaction_response)
 
             #print(json.dumps(user_info, indent=3))
-            MONGO_DB.user_profile_v1.update_one({'email': email}, 
+            MONGO_DB.user_profile_v1.update_one({'email': email},
                                                 {'$set': {
-                                                    'robinhood': user_info,
-                                                    'is_robinhood_linked': True,
-                                                    'robinhood_item_id': item_id
+                                                    'user_meta.'+profile+'_integration': True,
+                                                    'user_meta.'+profile+'_item_id': item_id
                                                 }
                                                 })
 
-            MONGO_DB.robinhood_metadata.insert_one({
-                                                    'robinhood_item_id': item_id,
-                                                    'robinhood_access_token': access_token,
+            MONGO_DB[profile+'_profile'].insert_one({
+                                                    "email": email,
+                                                    "purchased_tickers" : list(user_info.keys()),
+                                                    "purchased_tickers_details": user_info,
+                                                    "diversify_recommendations" : {},
+                                                    "frecommendations" : {},
+                                                    "error_tickers" : [],
+                                                    "high_risk_watch_list"  : {},
+                                                    "high_risk_purchase_list" : {},
+                                                    "sell_recommendations" : {},
+                                                    "ticker_meta": {
+                                                        "no_of_tickers": 0,
+                                                        "no_of_purchased_tickers": len(user_info)
+                                                    }
+                                                 })
+
+            MONGO_DB[profile+'_metadata'].insert_one({
+                                                    profile+'_item_id': item_id,
+                                                    profile+'_access_token': access_token,
                                                     'email': email
                                                    })
         except plaid.ApiException as e:
@@ -300,24 +275,6 @@ def process_securities_data(investment_response, investment_transaction_response
 # Retrieve high-level information about an Item
 # https://plaid.com/docs/#retrieve-item
 
-
-@app.route('/api/item', methods=['GET'])
-def item():
-    try:
-        request = ItemGetRequest(access_token=access_token)
-        response = client.item_get(request)
-        request = InstitutionsGetByIdRequest(
-            institution_id=response['item']['institution_id'],
-            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES))
-        )
-        institution_response = client.institutions_get_by_id(request)
-        pretty_print_response(response.to_dict())
-        pretty_print_response(institution_response.to_dict())
-        return jsonify({'error': None, 'item': response.to_dict()[
-            'item'], 'institution': institution_response.to_dict()['institution']})
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
 
 def pretty_print_response(response):
   print(json.dumps(response, indent=2, sort_keys=True, default=str))
