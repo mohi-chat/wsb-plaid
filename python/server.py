@@ -174,10 +174,14 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             elif investment_response['item']['institution_id'] == FIDELITY:
                 profile = 'fidelity'
 
+            security_map = {}
+            for security in investment_response['securities']:
+                security_map[security['security_id']] = security['ticker_symbol']
+
             itr = investment_transaction_response.copy()
             activity = {}
             for transaction in itr['investment_transactions']:
-                activity[transaction['investment_transaction_id']] = transaction
+                activity[security_map[transaction['security_id']]] = transaction
             user_info = process_securities_data(investment_response, investment_transaction_response)
 
 
