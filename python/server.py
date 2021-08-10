@@ -180,8 +180,15 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
 
             itr = investment_transaction_response.copy()
             activity = {}
+            activity = {}
             for transaction in itr['investment_transactions']:
-                activity[security_map[transaction['security_id']]] = transaction
+                if security_map[transaction['security_id']] == None:
+                    continue
+                if security_map[transaction['security_id']].lower() in activity:
+                    activity[security_map[transaction['security_id']].lower()].append(transaction)
+                else:
+                    activity[security_map[transaction['security_id']].lower()] = [transaction]
+            
             user_info = process_securities_data(investment_response, investment_transaction_response)
 
 
