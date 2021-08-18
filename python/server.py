@@ -162,6 +162,7 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             "item_id": item_id,
             "access_token": access_token,
             "email": email,
+            "environment": PLAID_ENV,
             "webhook_type": 'NEW_ACCOUNT_LINK'
         }
         url = "https://us-central1-capital-group-infra.cloudfunctions.net/robinhood_refresh_webook"
