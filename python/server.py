@@ -244,7 +244,7 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
         })
         return json.loads(e.body)
         with open('errors.txt', "a+") as f:
-            f.write("\n" + json.dumps(error_response))
+            f.write("\n" + json.dumps(e.body))
 
 
 @app.get('/api/auth')
