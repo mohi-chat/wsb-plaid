@@ -188,7 +188,7 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
                     activity[security_map[transaction['security_id']].lower()].append(transaction)
                 else:
                     activity[security_map[transaction['security_id']].lower()] = [transaction]
-            
+
             user_info = process_securities_data(investment_response, investment_transaction_response)
 
 
@@ -231,6 +231,8 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
                 "function": "get_access_token",
                 "parent_route": "/api/set_access_token"
             })
+            with open('errors.txt', "a+") as f:
+                f.write("\n" + json.dumps(error_response))
 
         return exchange_response.to_dict()
     except plaid.ApiException as e:
@@ -241,6 +243,8 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             "parent_route": "/api/set_access_token"
         })
         return json.loads(e.body)
+        with open('errors.txt', "a+") as f:
+            f.write("\n" + json.dumps(error_response))
 
 
 @app.get('/api/auth')
