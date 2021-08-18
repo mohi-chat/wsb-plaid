@@ -79,7 +79,7 @@ const Header = () => {
                   <div>
                   <h3 className={styles.title}>Account linked</h3>
                   <h4 className={styles.subtitle}>
-                    Congrats! You have successfully linked your account with WSB. You may now return to App.
+                    Congrats! You have successfully linked your account with WSB. It can take upto 2 minutes to sync with your brokerage account. You may now return to App.
                   </h4>
                   </div>
                 ) : (

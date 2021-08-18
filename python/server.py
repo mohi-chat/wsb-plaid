@@ -16,6 +16,7 @@ from datetime import timedelta
 import base64
 import os
 import datetime
+import requests
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 import json
@@ -156,83 +157,15 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
         access_token = exchange_response['access_token']
         item_id = exchange_response['item_id']
 
-        try:
-            hrequest = InvestmentsHoldingsGetRequest(access_token=access_token)
-            hresponse = client.investments_holdings_get(hrequest)
-            investment_response = hresponse.to_dict()
-
-            start_date = (datetime.datetime.now() - relativedelta(years=(9)))
-            end_date = datetime.datetime.now()
-            investment_transaction_options = InvestmentsTransactionsGetRequestOptions()
-            investment_transaction_request = InvestmentsTransactionsGetRequest(
-                access_token=access_token, start_date=start_date.date(), end_date=end_date.date(), options=investment_transaction_options)
-            investment_transaction_response = client.investments_transactions_get(investment_transaction_request)
-            investment_transaction_response = investment_transaction_response.to_dict()
-
-            if investment_response['item']['institution_id'] == ROBINHOOD:
-                profile = 'robinhood'
-            elif investment_response['item']['institution_id'] == FIDELITY:
-                profile = 'fidelity'
-
-            security_map = {}
-            for security in investment_response['securities']:
-                security_map[security['security_id']] = security['ticker_symbol']
-
-            itr = investment_transaction_response.copy()
-            activity = {}
-            activity = {}
-            for transaction in itr['investment_transactions']:
-                if security_map[transaction['security_id']] == None:
-                    continue
-                if security_map[transaction['security_id']].lower() in activity:
-                    activity[security_map[transaction['security_id']].lower()].append(transaction)
-                else:
-                    activity[security_map[transaction['security_id']].lower()] = [transaction]
-
-            user_info = process_securities_data(investment_response, investment_transaction_response)
-
-
-            #print(json.dumps(user_info, indent=3))
-            MONGO_DB.user_profile_v1.update_one({'email': email},
-                                                {'$set': {
-                                                    'user_meta.'+profile+'_integration': True,
-                                                    'user_meta.'+profile+'_item_id': item_id
-                                                }
-                                                })
-
-            MONGO_DB[profile+'_profile'].insert_one({
-                                                    "email": email,
-                                                    "purchased_tickers" : list(user_info.keys()),
-                                                    "purchased_tickers_details": user_info,
-                                                    "diversify_recommendations" : {},
-                                                    "frecommendations" : {},
-                                                    "error_tickers" : [],
-                                                    "high_risk_watch_list"  : {},
-                                                    "high_risk_purchase_list" : {},
-                                                    "sell_recommendations" : {},
-                                                    "ticker_meta": {
-                                                        "no_of_tickers": 0,
-                                                        "no_of_purchased_tickers": len(user_info)
-                                                    },
-                                                    "activity": activity
-                                                 })
-
-            MONGO_DB[profile+'_metadata'].insert_one({
-                                                    profile+'_item_id': item_id,
-                                                    profile+'_access_token': access_token,
-                                                    'email': email
-                                                   })
-        except plaid.ApiException as e:
-            error_response = format_error(e)
-            error_response['user_email'] = email
-            logFunctionError({
-                "error_msg": " Error in getting the access token" ,
-                "exception_msg": json.dumps(error_response),
-                "function": "get_access_token",
-                "parent_route": "/api/set_access_token"
-            })
-            with open('errors.txt', "a+") as f:
-                f.write("\n" + json.dumps(error_response))
+        # Initiate background account link task.
+        data = {
+            "item_id": item_id,
+            "access_token": access_token,
+            "email": email,
+            "webhook_type": 'NEW_ACCOUNT_LINK'
+        }
+        url = "https://us-central1-capital-group-infra.cloudfunctions.net/robinhood_refresh_webook"
+        response = requests.post(url, headers={"Content-Type":"application/json"}, data=json.dumps(data))
 
         return exchange_response.to_dict()
     except plaid.ApiException as e:
@@ -243,8 +176,6 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             "parent_route": "/api/set_access_token"
         })
         return json.loads(e.body)
-        with open('errors.txt', "a+") as f:
-            f.write("\n" + json.dumps(e.body))
 
 
 @app.get('/api/auth')
@@ -266,33 +197,6 @@ def get_auth():
         })
         return error_response
 
-def process_securities_data(investment_response, investment_transaction_response):
-    security_lookup = {}
-    for item in investment_response['securities']:
-        if item['type'] == 'equity':
-            security_lookup[item['security_id']] = item['ticker_symbol'].lower()
-
-    robinhood_holdings = {}
-    for item in investment_response['holdings']:
-        if item['security_id'] in security_lookup:
-            robinhood_holdings[item['security_id']] = {'ticker': security_lookup[item['security_id']],
-                                                       'unit': item['quantity'], 
-                                                       'price': item['cost_basis'], 
-                                                       'date': None}
-
-    for transaction in investment_transaction_response['investment_transactions']:
-        if transaction['security_id'] in robinhood_holdings:
-            robinhood_holdings[transaction['security_id']]['date'] = transaction['date'] + ' 13:30:00 UTC+0000'
-
-    user_info = {}
-    for item, value in robinhood_holdings.items():
-        ticker = value.pop('ticker')
-        user_info[ticker] = value
-
-    if None in user_info:
-        user_info['UNKNOWN_TAG'] = user_info.pop(None)
-
-    return user_info
 # Retrieve high-level information about an Item
 # https://plaid.com/docs/#retrieve-item
 
@@ -305,5 +209,5 @@ def format_error(e):
     return {'error': {'status_code': e.status, 'display_message':
                       response['error_message'], 'error_code': response['error_code'], 'error_type': response['error_type']}}
 
-# if __name__ == '__main__':
-#     uvicorn.run('server:app', host='0.0.0.0', port=8000)
+if __name__ == '__main__':
+    uvicorn.run('server:app', host='0.0.0.0', port=8000)
