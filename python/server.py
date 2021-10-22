@@ -129,7 +129,7 @@ def create_link_token():
             client_name="Plaid Quickstart",
             country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES)),
             language='en',
-            webhook='https://us-central1-capital-group-infra.cloudfunctions.net/robinhood_refresh_webook',
+            webhook='https://us-central1-wsb-prod.cloudfunctions.net/plaid_refresh_webhook',
             user=LinkTokenCreateRequestUser(
                 client_user_id=str(time.time())
             )
@@ -165,7 +165,7 @@ def get_access_token(public_token: str = Form(...), email: str = Form(...)):
             "environment": PLAID_ENV,
             "webhook_type": 'NEW_ACCOUNT_LINK'
         }
-        url = "https://us-central1-capital-group-infra.cloudfunctions.net/robinhood_refresh_webook"
+        url = "https://us-central1-wsb-prod.cloudfunctions.net/plaid_refresh_webhook"
         response = requests.post(url, headers={"Content-Type":"application/json"}, data=json.dumps(data))
 
         return exchange_response.to_dict()
