@@ -27,8 +27,8 @@ const Header = () => {
       {
         !isAccessAuthorized ? (
           <>
-            <h3>Page Not Found</h3>
-            <p>Oops. Our servers don't recognize the page you are looking for.</p>
+            <h3>404: Page Not Found</h3>
+            <p>Oops. Our servers didn't recognize the page you were looking for. Please try again after some time.</p>
           </>
         ) : (
           <>
